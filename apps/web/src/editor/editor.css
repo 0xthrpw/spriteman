@@ -1,0 +1,216 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 44px);
+  background: var(--bg);
+}
+.editor-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 12px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+}
+.editor-topbar .toolbar { flex: 1; border-bottom: 0; }
+.save-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 120px;
+}
+.editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.side-panel {
+  width: 280px;
+  background: var(--bg-elev);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.side-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.side-body { padding: 12px; overflow-y: auto; flex: 1; }
+.preview, .tiling { display: flex; flex-direction: column; gap: 8px; }
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.preview-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.preview-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-dim);
+  margin: 0;
+}
+.preview-controls input[type="range"] { flex: 1; }
+.canvas-area {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0b0d12;
+  background-image:
+    linear-gradient(45deg, rgba(255,255,255,0.015) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255,255,255,0.015) 25%, transparent 25%);
+  background-size: 16px 16px;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+}
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-right: 1px solid var(--border);
+}
+.tool-group:last-child { border-right: 0; }
+.tool-group .group-label {
+  font-size: 11px;
+  color: var(--fg-dim);
+  margin-right: 4px;
+}
+button.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+}
+button.tool:hover { background: var(--bg-elev2); }
+button.tool.active {
+  background: var(--bg-elev2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+button.tool .kbd {
+  font-size: 10px;
+  color: var(--fg-dim);
+  background: rgba(255,255,255,0.04);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+/* Palette */
+.palette-panel {
+  width: 220px;
+  padding: 12px;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.palette-panel .section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-dim);
+  margin: 12px 0 6px;
+}
+.palette-panel .current-color {
+  position: relative;
+  width: 100%;
+  height: 48px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+.swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0;
+  cursor: pointer;
+  background-clip: padding-box;
+}
+.swatch:hover { transform: scale(1.1); }
+.swatch.active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Timeline */
+.timeline {
+  padding: 8px 12px;
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.timeline-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  align-items: center;
+}
+.frame-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--bg-elev2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.frame-thumb.active {
+  border-color: var(--accent);
+  background: rgba(106,166,255,0.1);
+}
+.frame-thumb canvas {
+  background:
+    repeating-conic-gradient(#2a2f3a 0% 25%, #1f232c 0% 50%) 0 0 / 16px 16px;
+  width: 48px;
+  height: 48px;
+}
+.frame-thumb span {
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.frame-add {
+  width: 56px;
+  height: 70px;
+  font-size: 20px;
+}
+.timeline-actions {
+  display: flex;
+  gap: 8px;
+}
