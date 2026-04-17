@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import argon2 from 'argon2';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '../db/client.js';
+import { hashPassword, verifyPassword } from '../lib/password.js';
 import { RegisterRequest, LoginRequest, PublicUser, ApiError } from '@spriteman/shared';
 
 const authRoutes: FastifyPluginAsync = async (app) => {
@@ -23,7 +23,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
       if (existing) {
         return reply.code(409).send({ error: 'email_in_use' });
       }
-      const passwordHash = await argon2.hash(password);
+      const passwordHash = await hashPassword(password);
       const [row] = await db
         .insert(schema.users)
         .values({ email, passwordHash })
@@ -48,7 +48,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
     async (req, reply) => {
       const { email, password } = req.body as z.infer<typeof LoginRequest>;
       const user = await db.query.users.findFirst({ where: eq(schema.users.email, email) });
-      if (!user || !(await argon2.verify(user.passwordHash, password))) {
+      if (!user || !(await verifyPassword(password, user.passwordHash))) {
         return reply.code(401).send({ error: 'invalid_credentials' });
       }
       req.session.userId = user.id;
