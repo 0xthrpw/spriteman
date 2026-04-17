@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEditor, hexToRgba } from './store.js';
 import { createStroke, EyedropperStroke, type Stroke } from './tools.js';
-import { rgbaToHex } from './pixelBuffer.js';
+import { rgbaToHex } from '@spriteman/pixel';
 
 export function CanvasStack() {
   const state = useEditor();

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@spriteman/pixel": "*",
     "@spriteman/shared": "*",
     "@tanstack/react-query": "^5.51.23",
     "gifenc": "^1.0.3",

@@ -78,6 +78,7 @@ export class PixelBuffer {
     return new PixelBuffer(this.width, this.height, new Uint8ClampedArray(this.data));
   }
 
+  // DOM bridge — only safe to call in a browser/worker environment.
   toImageData(): ImageData {
     return new ImageData(new Uint8ClampedArray(this.data), this.width, this.height);
   }
@@ -86,19 +87,25 @@ export class PixelBuffer {
   encode(): string {
     const view = new Uint8Array(this.data.buffer, this.data.byteOffset, this.data.byteLength);
     const deflated = pako.deflate(view);
-    // btoa with large arrays can blow the stack when spread; chunk instead.
     let s = '';
     const CHUNK = 0x8000;
     for (let i = 0; i < deflated.length; i += CHUNK) {
       s += String.fromCharCode(...deflated.subarray(i, i + CHUNK));
     }
-    return btoa(s);
+    if (typeof btoa === 'function') return btoa(s);
+    return Buffer.from(s, 'binary').toString('base64');
   }
 
   static decode(width: number, height: number, encoded: string): PixelBuffer {
-    const binary = atob(encoded);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    let bytes: Uint8Array;
+    if (typeof atob === 'function') {
+      const binary = atob(encoded);
+      bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    } else {
+      const buf = Buffer.from(encoded, 'base64');
+      bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    }
     const inflated = pako.inflate(bytes);
     if (inflated.length !== width * height * 4) {
       throw new Error(
