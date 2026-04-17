@@ -23,15 +23,18 @@ const loadGuide = (): string => {
   throw new Error(`could not locate guide; looked in: ${GUIDE_CANDIDATES.join(', ')}`);
 };
 
+const normalizeSlug = (s: string) => s.trim().toLowerCase().replace(/[-_\s]+/g, ' ');
+
 const extractSection = (md: string, slug: string): string | null => {
   const lines = md.split('\n');
+  const want = normalizeSlug(slug);
   let capture = false;
   const out: string[] = [];
   for (const line of lines) {
     const h2 = line.match(/^## (.+)$/);
     if (h2) {
       if (capture) break;
-      if (h2[1]!.trim().toLowerCase() === slug.toLowerCase()) {
+      if (normalizeSlug(h2[1]!) === want) {
         capture = true;
         out.push(line);
         continue;

@@ -8,6 +8,7 @@ import { register as draw } from './commands/draw.js';
 import { register as apply } from './commands/apply.js';
 import { register as render } from './commands/render.js';
 import { register as guide } from './commands/guide.js';
+import { register as config } from './commands/config.js';
 import { AuthError, ConflictError } from './client.js';
 
 const program = new Command();
@@ -24,6 +25,7 @@ draw(program);
 apply(program);
 render(program);
 guide(program);
+config(program);
 
 const run = async (): Promise<void> => {
   try {

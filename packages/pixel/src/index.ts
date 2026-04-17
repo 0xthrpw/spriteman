@@ -16,6 +16,8 @@ export {
   drawRect,
   floodFill,
   clearBuffer,
+  mirrorBuffer,
+  rotateBuffer,
   type LineOptions,
   type RectOptions,
 } from './drawing.js';

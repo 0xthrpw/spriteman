@@ -15,7 +15,7 @@ export type GifFrame = { buf: PixelBuffer; durationMs: number };
  * Encode a series of same-sized frames as an animated GIF. Uses gifenc's
  * median-cut quantizer; alpha is flattened to on/off (GIF limitation).
  */
-export const renderGif = (frames: GifFrame[], outPath: string): void => {
+export const encodeGif = (frames: GifFrame[]): Buffer => {
   if (frames.length === 0) throw new Error('no frames');
   const w = frames[0]!.buf.width;
   const h = frames[0]!.buf.height;
@@ -23,7 +23,6 @@ export const renderGif = (frames: GifFrame[], outPath: string): void => {
     if (f.buf.width !== w || f.buf.height !== h) throw new Error('frames must share dimensions');
   }
   const enc = GIFEncoder();
-  // Build a shared palette from all frames combined for consistent color.
   const combined = new Uint8ClampedArray(w * h * 4 * frames.length);
   for (let i = 0; i < frames.length; i++) {
     combined.set(frames[i]!.buf.data, i * w * h * 4);
@@ -39,7 +38,11 @@ export const renderGif = (frames: GifFrame[], outPath: string): void => {
     });
   }
   enc.finish();
-  writeFileSync(outPath, Buffer.from(enc.bytes()));
+  return Buffer.from(enc.bytes());
+};
+
+export const renderGif = (frames: GifFrame[], outPath: string): void => {
+  writeFileSync(outPath, encodeGif(frames));
 };
 
 const findTransparentIndex = (palette: number[][]): number | undefined => {

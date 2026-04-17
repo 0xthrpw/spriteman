@@ -1,4 +1,4 @@
-import { defaultApiUrl, readSession, writeSession, type Session } from './config.js';
+import { resolveApiUrl, readSession, writeSession, type Session } from './config.js';
 
 export class AuthError extends Error {}
 export class ConflictError extends Error {
@@ -19,7 +19,7 @@ const extractSessionCookie = (setCookie: string | null): string | null => {
   return match ? match[0] : null;
 };
 
-const baseUrl = (override?: string) => override ?? defaultApiUrl();
+const baseUrl = (override?: string) => override ?? resolveApiUrl();
 
 export type Client = ReturnType<typeof createClient>;
 

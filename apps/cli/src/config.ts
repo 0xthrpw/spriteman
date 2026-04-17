@@ -13,6 +13,10 @@ export type Active = {
   projectId: string;
 };
 
+export type Config = {
+  apiUrl?: string;
+};
+
 const configDir = (): string => {
   const xdg = process.env['XDG_CONFIG_HOME'];
   return xdg ? join(xdg, 'spriteman') : join(homedir(), '.config', 'spriteman');
@@ -20,6 +24,7 @@ const configDir = (): string => {
 
 const sessionPath = (): string => join(configDir(), 'session.json');
 const activePath = (): string => join(configDir(), 'active.json');
+const configPath = (): string => join(configDir(), 'config.json');
 
 const ensureDir = () => {
   const dir = configDir();
@@ -63,8 +68,43 @@ export const writeActive = (a: Active): void => {
   writeFileSync(activePath(), JSON.stringify(a, null, 2));
 };
 
-export const defaultApiUrl = (): string =>
-  process.env['SPRITEMAN_API_URL'] ?? 'http://localhost:3000';
+export const readConfig = (): Config => {
+  const p = configPath();
+  if (!existsSync(p)) return {};
+  try {
+    return JSON.parse(readFileSync(p, 'utf8')) as Config;
+  } catch {
+    return {};
+  }
+};
+
+export const writeConfig = (c: Config): void => {
+  ensureDir();
+  writeFileSync(configPath(), JSON.stringify(c, null, 2));
+};
+
+export const DEFAULT_API_URL = 'http://localhost:3001';
+
+// Resolution order: explicit arg (handled by caller) → env → session → config → default.
+export const resolveApiUrl = (): string => {
+  const env = process.env['SPRITEMAN_API_URL'];
+  if (env) return env;
+  const sess = readSession();
+  if (sess?.apiUrl) return sess.apiUrl;
+  const cfg = readConfig();
+  if (cfg.apiUrl) return cfg.apiUrl;
+  return DEFAULT_API_URL;
+};
+
+// Kept for backwards-compat with existing callers that only want env-or-default
+// (primarily the `login` path, which runs before a session exists).
+export const defaultApiUrl = (): string => {
+  const env = process.env['SPRITEMAN_API_URL'];
+  if (env) return env;
+  const cfg = readConfig();
+  if (cfg.apiUrl) return cfg.apiUrl;
+  return DEFAULT_API_URL;
+};
 
 export const resolveProjectId = (explicit?: string): string => {
   if (explicit) return explicit;

@@ -51,13 +51,19 @@ sprites programmatically. After `npm install` the binary is available at
 
 ```bash
 # one-time
+spriteman config set api-url http://localhost:3001   # persist once, no env var needed
 spriteman login                          # prompts for email + password, persists
                                          # session cookie to ~/.config/spriteman/
+# …or scripted (CI / AI agents):
+SPRITEMAN_EMAIL=me@example.com spriteman login --password-stdin < /tmp/password
 
 # project + frame management
 spriteman project create hero --width 32 --height 32 --fps 8
+spriteman project create walk --width 32 --height 32 --frames 16 --duration 120
+                                         # creates a full 16-frame animation in one call
 spriteman project use <id>               # set active project (omits --project later)
 spriteman frame add --duration 120
+spriteman frame duplicate 0 --flip-x     # mirror an existing frame horizontally
 
 # drawing — batch via `apply` for efficiency (one GET + one PUT)
 cat > /tmp/hero.json <<EOF
@@ -75,7 +81,10 @@ spriteman draw fill  --frame 0 --x 0 --y 0 --color '#1d2b53ff'
 
 # render locally (the API has no export endpoints)
 spriteman render <id> --frame 0 --out frame.png
+spriteman render <id> --frame 0 --scale 8 --out frame@8x.png   # nearest-neighbor upscale
+spriteman render <id> --frame 0 --stdout | feh -               # pipe bytes instead of file
 spriteman render <id> --sheet --cols 4 --out sheet.png
+spriteman render <id> --gif --frames 0..3 --out down.gif       # per-direction preview
 spriteman render <id> --gif --out anim.gif
 spriteman export <id> --out project.json
 
@@ -86,5 +95,9 @@ spriteman guide palette                  # one topic: resolution / palette /
                                          # pitfalls / workflow
 ```
 
-Env overrides: `SPRITEMAN_API_URL` (default `http://localhost:3000`),
-`SPRITEMAN_PROJECT` (default active project).
+Env overrides: `SPRITEMAN_API_URL` (default `http://localhost:3001`,
+matching the API server), `SPRITEMAN_PROJECT` (default active project),
+`SPRITEMAN_EMAIL` (pre-fill login email).
+
+URL resolution order (first wins): `--api-url` flag → `SPRITEMAN_API_URL` env
+→ stored session → `spriteman config set api-url` value → `:3001` default.
