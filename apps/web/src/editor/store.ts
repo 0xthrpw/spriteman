@@ -3,7 +3,7 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { randomUUID } from '../lib/uuid.js';
 import type { Project, Frame, ProjectPalette, HexColor } from '@spriteman/shared';
 import { BUILT_IN_PALETTES } from '@spriteman/shared';
-import { PixelBuffer, hexToRgba, rgbaToHex, rgbaEqual, type RGBA } from './pixelBuffer.js';
+import { PixelBuffer, hexToRgba, rgbaToHex, rgbaEqual, type RGBA } from '@spriteman/pixel';
 import * as history from './history.js';
 
 export type ToolId = 'pencil' | 'eraser' | 'fill' | 'line' | 'rect' | 'eyedropper';

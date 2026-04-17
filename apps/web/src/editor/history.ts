@@ -1,4 +1,4 @@
-import type { RGBA } from './pixelBuffer.js';
+import type { RGBA } from '@spriteman/pixel';
 
 export type PixelDiff = { i: number; before: RGBA; after: RGBA };
 

@@ -1,5 +1,11 @@
-import type { PixelBuffer, RGBA } from './pixelBuffer.js';
-import { rgbaEqual } from './pixelBuffer.js';
+import {
+  type PixelBuffer,
+  type RGBA,
+  rgbaEqual,
+  stampBrush,
+  bresenham as line,
+  constrainLineTo45,
+} from '@spriteman/pixel';
 import type { PixelDiff } from './history.js';
 import type { ToolId } from './store.js';
 
@@ -22,63 +28,6 @@ export interface Stroke {
   previewOnly: boolean;
   /** For preview tools, render overlay frame based on current gesture state. */
   renderPreview?: (ctx: CanvasRenderingContext2D, scale: number) => void;
-}
-
-// ---- utility: brush stamp (paints square of size around p) ----
-function stampBrush(buf: PixelBuffer, x: number, y: number, size: number, color: RGBA, diffs: PixelDiff[] | null, seen: Set<number>) {
-  const half = Math.floor((size - 1) / 2);
-  for (let dy = -half; dy <= size - 1 - half; dy++) {
-    for (let dx = -half; dx <= size - 1 - half; dx++) {
-      const px = x + dx;
-      const py = y + dy;
-      if (!buf.inBounds(px, py)) continue;
-      const i = buf.index(px, py);
-      if (seen.has(i)) continue;
-      seen.add(i);
-      const before: RGBA = [buf.data[i]!, buf.data[i + 1]!, buf.data[i + 2]!, buf.data[i + 3]!];
-      if (rgbaEqual(before, color)) continue;
-      if (diffs) diffs.push({ i, before, after: color });
-      buf.data[i] = color[0];
-      buf.data[i + 1] = color[1];
-      buf.data[i + 2] = color[2];
-      buf.data[i + 3] = color[3];
-    }
-  }
-}
-
-// Bresenham
-function line(x0: number, y0: number, x1: number, y1: number, visit: (x: number, y: number) => void) {
-  const dx = Math.abs(x1 - x0);
-  const sx = x0 < x1 ? 1 : -1;
-  const dy = -Math.abs(y1 - y0);
-  const sy = y0 < y1 ? 1 : -1;
-  let err = dx + dy;
-  let x = x0;
-  let y = y0;
-  while (true) {
-    visit(x, y);
-    if (x === x1 && y === y1) break;
-    const e2 = 2 * err;
-    if (e2 >= dy) {
-      err += dy;
-      x += sx;
-    }
-    if (e2 <= dx) {
-      err += dx;
-      y += sy;
-    }
-  }
-}
-
-function constrainLineTo45(x0: number, y0: number, x1: number, y1: number): [number, number] {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  const adx = Math.abs(dx);
-  const ady = Math.abs(dy);
-  if (adx > 2 * ady) return [x1, y0];
-  if (ady > 2 * adx) return [x0, y1];
-  const m = Math.max(adx, ady);
-  return [x0 + Math.sign(dx) * m, y0 + Math.sign(dy) * m];
 }
 
 // ---------------- pencil / eraser ----------------
