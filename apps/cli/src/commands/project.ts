@@ -5,8 +5,10 @@ import {
   deleteProject,
   getProject,
   listProjects,
+  mutateProject,
 } from '../api.js';
 import { readActive, resolveProjectId, writeActive } from '../config.js';
+import { blankFrame, projectToUpdate } from '../frameUtil.js';
 import { die, output, parseIntArg } from '../util.js';
 
 export const register = (program: Command): void => {
@@ -36,28 +38,58 @@ export const register = (program: Command): void => {
 
   project
     .command('create <name>')
-    .description('create a new project with a single blank frame')
+    .description('create a new project, optionally with N blank frames at a given per-frame duration')
     .requiredOption('--width <n>', 'canvas width (1..256)')
     .requiredOption('--height <n>', 'canvas height (1..256)')
     .option('--fps <n>', 'animation fps (1..60)', '12')
+    .option('--frames <n>', 'create N blank frames (default 1)')
+    .option('--duration <ms>', 'per-frame duration in ms (applied to every frame)')
     .option('--json', 'emit JSON')
     .action(
       async (
         name: string,
-        opts: { width: string; height: string; fps: string; json?: boolean },
+        opts: {
+          width: string;
+          height: string;
+          fps: string;
+          frames?: string;
+          duration?: string;
+          json?: boolean;
+        },
       ) => {
         const c = createClient();
-        const project = await createProject(c, {
+        const frameCount = opts.frames != null ? parseIntArg(opts.frames, '--frames') : 1;
+        if (frameCount < 1) die('--frames must be >= 1');
+        const duration =
+          opts.duration != null ? parseIntArg(opts.duration, '--duration') : null;
+        let project = await createProject(c, {
           name,
           width: parseIntArg(opts.width, '--width'),
           height: parseIntArg(opts.height, '--height'),
           fps: parseIntArg(opts.fps, '--fps'),
         });
+        // Server always creates exactly one frame. Top up to frameCount and
+        // normalize durations in a single PUT.
+        if (frameCount > 1 || duration != null) {
+          project = await mutateProject(c, project.id, (p) => {
+            const frames = p.frames.slice();
+            // Ensure existing frames carry the requested duration.
+            if (duration != null) {
+              for (let i = 0; i < frames.length; i++) {
+                frames[i] = { ...frames[i]!, durationMs: duration };
+              }
+            }
+            while (frames.length < frameCount) {
+              frames.push(blankFrame(p.width, p.height, duration));
+            }
+            return { ...projectToUpdate(p), frames };
+          });
+        }
         writeActive({ projectId: project.id });
         if (opts.json) output(true, '', project);
         else
           process.stdout.write(
-            `created ${project.id}  ${project.width}x${project.height}  ${project.name}\n(set as active project)\n`,
+            `created ${project.id}  ${project.width}x${project.height}  ${project.frames.length} frame(s)  ${project.name}\n(set as active project)\n`,
           );
       },
     );

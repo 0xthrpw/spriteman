@@ -1,26 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import type { Command } from 'commander';
-import { PixelBuffer } from '@spriteman/pixel';
-import type { Frame, UpdateProjectRequest, Project } from '@spriteman/shared';
+import { PixelBuffer, mirrorBuffer, rotateBuffer } from '@spriteman/pixel';
+import type { Frame, Project } from '@spriteman/shared';
 import { createClient, mutateProject } from '../api.js';
 import { resolveProjectId } from '../config.js';
 import { resolveFrame } from '../ops.js';
+import { blankFrame, projectToUpdate as toUpdate } from '../frameUtil.js';
 import { output, parseIntArg } from '../util.js';
 
-const blankFrame = (w: number, h: number): Frame => ({
-  id: randomUUID(),
-  durationMs: null,
-  layers: [{ pixels: new PixelBuffer(w, h).encode() }],
-});
-
-const toUpdate = (p: Project): UpdateProjectRequest => ({
-  name: p.name,
-  width: p.width,
-  height: p.height,
-  fps: p.fps,
-  frames: p.frames,
-  palette: p.palette,
-});
+const parseTurns = (s: string): 1 | 2 | 3 => {
+  const n = parseIntArg(s, '--rotate');
+  const mod = (((n % 4) + 4) % 4);
+  if (mod === 0) throw new Error('--rotate must be 1, 2, or 3 (90°, 180°, 270°)');
+  return mod as 1 | 2 | 3;
+};
 
 export const register = (program: Command): void => {
   const frame = program.command('frame').description('manage frames within a project');
@@ -68,20 +61,37 @@ export const register = (program: Command): void => {
 
   frame
     .command('duplicate <frameRef>')
-    .description('duplicate a frame (by id or index)')
+    .description('duplicate a frame (by id or index), optionally flipped/rotated')
     .option('--project <id>')
-    .action(async (ref: string, opts: { project?: string }) => {
-      const c = createClient();
-      const pid = resolveProjectId(opts.project);
-      const result = await mutateProject(c, pid, (p) => {
-        const { index, frame: f } = resolveFrame(p, ref);
-        const dup: Frame = { ...f, id: randomUUID(), layers: f.layers.map((l) => ({ ...l })) };
-        const frames = p.frames.slice();
-        frames.splice(index + 1, 0, dup);
-        return { ...toUpdate(p), frames };
-      });
-      process.stdout.write(`duplicated; now ${result.frames.length} frame(s)\n`);
-    });
+    .option('--flip-x', 'mirror the duplicate horizontally')
+    .option('--flip-y', 'mirror the duplicate vertically')
+    .option('--rotate <turns>', 'clockwise 90°-turns to apply (1, 2, or 3)')
+    .action(
+      async (
+        ref: string,
+        opts: { project?: string; flipX?: boolean; flipY?: boolean; rotate?: string },
+      ) => {
+        const c = createClient();
+        const pid = resolveProjectId(opts.project);
+        const turns = opts.rotate ? parseTurns(opts.rotate) : 0;
+        const result = await mutateProject(c, pid, (p) => {
+          const { index, frame: f } = resolveFrame(p, ref);
+          const layers = f.layers.map((l) => {
+            if (!opts.flipX && !opts.flipY && !turns) return { ...l };
+            const buf = PixelBuffer.decode(p.width, p.height, l.pixels);
+            if (opts.flipX) mirrorBuffer(buf, 'x');
+            if (opts.flipY) mirrorBuffer(buf, 'y');
+            if (turns) rotateBuffer(buf, turns as 1 | 2 | 3);
+            return { ...l, pixels: buf.encode() };
+          });
+          const dup: Frame = { ...f, id: randomUUID(), layers };
+          const frames = p.frames.slice();
+          frames.splice(index + 1, 0, dup);
+          return { ...toUpdate(p), frames };
+        });
+        process.stdout.write(`duplicated; now ${result.frames.length} frame(s)\n`);
+      },
+    );
 
   frame
     .command('delete <frameRef>')

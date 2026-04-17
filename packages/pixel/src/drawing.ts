@@ -170,3 +170,81 @@ export function clearBuffer(buf: PixelBuffer, color: RGBA = [0, 0, 0, 0]): void 
     buf.data[i + 3] = color[3];
   }
 }
+
+const swapPixel = (buf: PixelBuffer, i: number, j: number): void => {
+  const r = buf.data[i]!, g = buf.data[i + 1]!, b = buf.data[i + 2]!, a = buf.data[i + 3]!;
+  buf.data[i] = buf.data[j]!;
+  buf.data[i + 1] = buf.data[j + 1]!;
+  buf.data[i + 2] = buf.data[j + 2]!;
+  buf.data[i + 3] = buf.data[j + 3]!;
+  buf.data[j] = r;
+  buf.data[j + 1] = g;
+  buf.data[j + 2] = b;
+  buf.data[j + 3] = a;
+};
+
+// In-place mirror across the given axis. 'x' flips horizontally (left↔right),
+// 'y' flips vertically (top↔bottom).
+export function mirrorBuffer(buf: PixelBuffer, axis: 'x' | 'y'): void {
+  const { width, height } = buf;
+  if (axis === 'x') {
+    const half = Math.floor(width / 2);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < half; x++) {
+        swapPixel(buf, buf.index(x, y), buf.index(width - 1 - x, y));
+      }
+    }
+  } else {
+    const half = Math.floor(height / 2);
+    for (let y = 0; y < half; y++) {
+      for (let x = 0; x < width; x++) {
+        swapPixel(buf, buf.index(x, y), buf.index(x, height - 1 - y));
+      }
+    }
+  }
+}
+
+// In-place 90°-quantized rotation. `turns` is counted clockwise (1 = 90°,
+// 2 = 180°, 3 = 270°). Only square buffers are supported for 1/3 turns —
+// throws otherwise. 180° works on any rectangle.
+export function rotateBuffer(buf: PixelBuffer, turns: 1 | 2 | 3): void {
+  const t = (((turns % 4) + 4) % 4) as 0 | 1 | 2 | 3;
+  if (t === 0) return;
+  const { width, height } = buf;
+  if (t === 2) {
+    // 180° = mirror x then mirror y (either order works).
+    const n = width * height;
+    for (let i = 0; i < Math.floor(n / 2); i++) {
+      const a = i * 4;
+      const b = (n - 1 - i) * 4;
+      swapPixel(buf, a, b);
+    }
+    return;
+  }
+  if (width !== height) {
+    throw new Error('90°/270° rotation requires a square buffer');
+  }
+  const n = width;
+  const temp = new Uint8ClampedArray(buf.data);
+  const srcIdx = (x: number, y: number) => (y * n + x) * 4;
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      let sx: number, sy: number;
+      if (t === 1) {
+        // clockwise 90°: new(x,y) ← old(y, n-1-x)
+        sx = y;
+        sy = n - 1 - x;
+      } else {
+        // 270° (counter-clockwise 90°): new(x,y) ← old(n-1-y, x)
+        sx = n - 1 - y;
+        sy = x;
+      }
+      const s = srcIdx(sx, sy);
+      const d = buf.index(x, y);
+      buf.data[d] = temp[s]!;
+      buf.data[d + 1] = temp[s + 1]!;
+      buf.data[d + 2] = temp[s + 2]!;
+      buf.data[d + 3] = temp[s + 3]!;
+    }
+  }
+}

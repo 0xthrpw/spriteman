@@ -5,6 +5,8 @@ import {
   drawRect,
   floodFill,
   hexToRgba,
+  mirrorBuffer,
+  rotateBuffer,
   setPixel,
   type RGBA,
 } from '@spriteman/pixel';
@@ -21,17 +23,37 @@ export type DrawOp =
       fill?: boolean;
     }
   | { type: 'bucket'; x: number; y: number; color: string }
-  | { type: 'clear'; color?: string };
+  | { type: 'clear'; color?: string }
+  | { type: 'mirror'; axis: 'x' | 'y' }
+  | { type: 'rotate'; turns: 1 | 2 | 3 }
+  | { type: 'apply'; ref: string };
+
+export type FrameScript = {
+  index: string | number;
+  ops: DrawOp[];
+};
 
 export type DrawScript = {
   projectId?: string;
+  // Named op groups, referenced via { type: 'apply', ref: <name> }.
+  defs?: Record<string, DrawOp[]>;
+  // Legacy single-frame shape.
   frame?: string | number;
-  ops: DrawOp[];
+  ops?: DrawOp[];
+  // Multi-frame shape — each entry hits one frame in the project.
+  frames?: FrameScript[];
 };
 
 const asRgba = (hex: string): RGBA => hexToRgba(hex);
 
-export const applyOp = (buf: PixelBuffer, op: DrawOp): void => {
+export type ApplyContext = {
+  defs?: Record<string, DrawOp[]>;
+  depth?: number;
+};
+
+const MAX_APPLY_DEPTH = 16;
+
+export const applyOp = (buf: PixelBuffer, op: DrawOp, ctx: ApplyContext = {}): void => {
   switch (op.type) {
     case 'pixel':
       setPixel(buf, op.x, op.y, asRgba(op.color));
@@ -52,11 +74,27 @@ export const applyOp = (buf: PixelBuffer, op: DrawOp): void => {
     case 'clear':
       clearBuffer(buf, op.color ? asRgba(op.color) : [0, 0, 0, 0]);
       return;
+    case 'mirror':
+      mirrorBuffer(buf, op.axis);
+      return;
+    case 'rotate':
+      rotateBuffer(buf, op.turns);
+      return;
+    case 'apply': {
+      const depth = ctx.depth ?? 0;
+      if (depth >= MAX_APPLY_DEPTH) {
+        throw new Error(`apply chain too deep (possible cycle at "${op.ref}")`);
+      }
+      const group = ctx.defs?.[op.ref];
+      if (!group) throw new Error(`apply: no def named "${op.ref}"`);
+      for (const inner of group) applyOp(buf, inner, { defs: ctx.defs, depth: depth + 1 });
+      return;
+    }
   }
 };
 
-export const applyOps = (buf: PixelBuffer, ops: DrawOp[]): void => {
-  for (const op of ops) applyOp(buf, op);
+export const applyOps = (buf: PixelBuffer, ops: DrawOp[], ctx: ApplyContext = {}): void => {
+  for (const op of ops) applyOp(buf, op, ctx);
 };
 
 /**
@@ -81,3 +119,18 @@ export const decodeFrame = (project: Project, frame: Frame): PixelBuffer => {
 };
 
 export const encodeFrame = (buf: PixelBuffer): string => buf.encode();
+
+// Normalize a DrawScript into a list of { index, ops } entries. Accepts both
+// the legacy { frame, ops } shape and the new { frames: [...] } shape.
+export const normalizeScript = (script: DrawScript): FrameScript[] => {
+  if (script.frames && script.frames.length > 0) {
+    if (script.ops && script.ops.length > 0) {
+      throw new Error('script: use either `frames` OR top-level `ops`, not both');
+    }
+    return script.frames;
+  }
+  if (script.ops) {
+    return [{ index: script.frame ?? 0, ops: script.ops }];
+  }
+  throw new Error('script must define `ops` (single-frame) or `frames` (multi-frame)');
+};

@@ -26,15 +26,28 @@ const prompt = (question: string, hide = false): Promise<string> =>
     });
   });
 
+const readAllStdin = (): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    input.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    input.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    input.on('error', reject);
+  });
+
 export const register = (program: Command): void => {
   program
     .command('login')
     .description('log in and persist session cookie to ~/.config/spriteman/session.json')
-    .option('--email <email>', 'email address')
-    .option('--api-url <url>', 'API base URL (default: SPRITEMAN_API_URL or http://localhost:3000)')
-    .action(async (opts: { email?: string; apiUrl?: string }) => {
-      const email = opts.email ?? (await prompt('email: ')).trim();
-      const password = await prompt('password: ', true);
+    .option('--email <email>', 'email address (falls back to SPRITEMAN_EMAIL)')
+    .option('--password-stdin', 'read password from stdin (for scripted/agent use)')
+    .option('--api-url <url>', 'API base URL (default: SPRITEMAN_API_URL or http://localhost:3001)')
+    .action(async (opts: { email?: string; passwordStdin?: boolean; apiUrl?: string }) => {
+      const email = opts.email ?? process.env['SPRITEMAN_EMAIL'] ?? (await prompt('email: ')).trim();
+      if (!email) die('email is required (use --email, SPRITEMAN_EMAIL, or the prompt)');
+      const password = opts.passwordStdin
+        ? (await readAllStdin()).replace(/\r?\n$/, '')
+        : await prompt('password: ', true);
+      if (!password) die('password is empty');
       const client = createClient({ apiUrl: opts.apiUrl });
       try {
         await client.login(email, password);

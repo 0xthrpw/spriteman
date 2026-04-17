@@ -124,11 +124,55 @@ Typical frame counts for common cycles at 12 fps:
 - **Attack**: 3–5 frames, with anticipation (wind-up), the hit frame (held
   longer, 100–150 ms), and a recovery frame.
 
-Set per-frame timing with `spriteman frame duration <ref> <ms>`. Omitting
+The four canonical walk-cycle key poses (named so your frames stay
+readable and so animators can talk to each other):
+
+- **Contact**: the stepping foot has just touched the ground; legs fully
+  extended and splayed. This is frame 0 of a 4-frame cycle.
+- **Down**: body at its lowest point, weight absorbed onto the forward
+  leg; the trailing leg is bent and lifting. Frame 1.
+- **Passing**: legs cross, body rising; the swung-back leg is now
+  directly beneath the hip, vertical. Frame 2.
+- **Up**: body at its highest point, about to come down; the forward
+  leg extends for the next contact. Frame 3.
+
+Set per-frame timing with `spriteman frame duration <ref> <ms>` or
+pass `--duration <ms>` at `project create` / `frame add` time. Omitting
 durations falls back to the project's FPS.
 
 Anti-stutter: keep the sprite's "center of mass" consistent across frames so
 animations don't wiggle. Anchor characters to a fixed foot position.
+
+## directional sprites
+
+For top-down and isometric games you typically ship one sprite with
+**rows = direction, cols = frame in the walk cycle**. That way
+`spriteman render --sheet --cols <frames-per-cycle>` produces exactly
+the grid most game engines expect — engines index by `(direction_row,
+cycle_col)`, no post-processing needed.
+
+Canonical direction orders (pick one and stay consistent):
+
+- **DLRU** — down, left, right, up (row 0…3). Common in RPG Maker
+  and most top-down engines.
+- **UDLR** — up, down, left, right. Common in older Zelda-alikes.
+
+Tips:
+
+1. Build the two directions that share silhouette mass first
+   (e.g. left and right), then derive the other from the first with
+   `spriteman frame duplicate <ref> --flip-x`. Lets you guarantee
+   symmetry without hand-authoring mirrored pixels.
+2. Author each row's 4 frames as the canonical key poses from
+   `guide animation` (contact / down / passing / up) so the walk reads
+   the same in every direction.
+3. Use `spriteman render <id> --gif --frames 0..3 --out down.gif` (and
+   `4..7`, `8..11`, `12..15`) to preview a single direction at a time
+   when iterating.
+4. Bootstrap a 16-frame sheet in one round-trip:
+   `spriteman project create hero --width 32 --height 32 --frames 16
+   --duration 120`. Then author all 16 with a single multi-frame
+   `apply` (see `guide workflow`).
 
 ## pitfalls
 
@@ -178,11 +222,39 @@ spriteman render $(spriteman project list --json | jq -r '.[0].id') --frame 0 --
 
 Guidelines:
 
-- One `apply` per frame. Don't mix edits to different frames in one script.
+- For a single frame, use `{ "frame": <n>, "ops": [...] }`. For multiple
+  frames in one round-trip, use the multi-frame shape:
+
+  ```json
+  {
+    "defs": {
+      "silhouette": [
+        { "type": "clear" },
+        { "type": "rect", "at": [4, 8], "size": [8, 12], "color": "#1d2b53ff", "fill": true }
+      ]
+    },
+    "frames": [
+      { "index": 0, "ops": [{ "type": "apply", "ref": "silhouette" }, { "type": "pixel", "x": 10, "y": 14, "color": "#fff1e8ff" }] },
+      { "index": 1, "ops": [{ "type": "apply", "ref": "silhouette" }, { "type": "pixel", "x": 11, "y": 14, "color": "#fff1e8ff" }] }
+    ]
+  }
+  ```
+
+  `defs` lets you name shared op groups (e.g. the static silhouette of a
+  walking character) and reference them via `{ "type": "apply", "ref":
+  "<name>" }` inside each frame's ops. Lifts a 16-frame walk-cycle
+  authoring job from "16 nearly-identical files" to one file.
+- A `{ "type": "clear" }` op at the top of an `apply` script makes the
+  script idempotent — you can re-run it without compounding state onto
+  the previous canvas. This is how you'll want to iterate most of the
+  time; it's cheaper to rebuild a small frame than to patch it.
+- Transform ops — `{ "type": "mirror", "axis": "x" | "y" }` and
+  `{ "type": "rotate", "turns": 1 | 2 | 3 }` — operate on the whole
+  frame buffer. They're useful for deriving right-facing from
+  left-facing (`axis: "x"`) after calling `apply` on a shared def.
 - Keep a mental model of the canvas: agents are not good at invisible state,
-  so `spriteman render ... --out preview.png` between edits, then re-read the
-  PNG to verify your mental model matches reality.
-- When iterating, prefer `apply` with `clear` at the top of the script. It's
-  cheaper to rebuild a small frame than to patch it.
+  so `spriteman render ... --out preview.png` (or `... --stdout | …`)
+  between edits, then re-read the PNG to verify your mental model
+  matches reality. `--scale 8` upscales for human-readable previews.
 - Use `spriteman guide palette` before you choose colors. The built-in
   palettes are curated and will almost always look better than ad-hoc picks.
