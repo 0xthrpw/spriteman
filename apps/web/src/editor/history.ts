@@ -4,6 +4,7 @@ export type PixelDiff = { i: number; before: RGBA; after: RGBA };
 
 export type Command =
   | { kind: 'pixels'; frameId: string; diffs: PixelDiff[] }
+  | { kind: 'flip'; frameId: string; axis: 'x' | 'y' }
   | { kind: 'frameSnapshot'; frameId: string; before: Uint8ClampedArray; after: Uint8ClampedArray }
   | { kind: 'frameOp'; op: 'add' | 'delete' | 'duplicate' | 'reorder'; payload: unknown };
 

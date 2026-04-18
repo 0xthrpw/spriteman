@@ -189,11 +189,23 @@ button.tool .kbd {
   background: var(--bg-elev2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 .frame-thumb.active {
   border-color: var(--accent);
   background: rgba(106,166,255,0.1);
+}
+.frame-thumb.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+.drop-indicator {
+  width: 3px;
+  align-self: stretch;
+  background: var(--accent);
+  border-radius: 2px;
 }
 .frame-thumb canvas {
   background:

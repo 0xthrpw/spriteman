@@ -32,6 +32,7 @@ export function Toolbar() {
   const toggleGrid = useEditor((s) => s.toggleGrid);
   const zoom = useEditor((s) => s.zoom);
   const setZoom = useEditor((s) => s.setZoom);
+  const flipActiveFrame = useEditor((s) => s.flipActiveFrame);
 
   useHistoryState();
   const canUndo = history.canUndo();
@@ -68,6 +69,11 @@ export function Toolbar() {
       <div className="tool-group">
         <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)">Undo</button>
         <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)">Redo</button>
+      </div>
+      <div className="tool-group">
+        <span className="group-label">Flip</span>
+        <button onClick={() => flipActiveFrame('x')} title="Flip horizontal (H)">⇔</button>
+        <button onClick={() => flipActiveFrame('y')} title="Flip vertical (V)">⇕</button>
       </div>
       <div className="tool-group">
         <button className={onionSkin ? 'tool active' : 'tool'} onClick={toggleOnion} title="Onion skin">Onion</button>
