@@ -20,10 +20,14 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
   const placements = useLayout((s) => s.placements);
   const bufferRev = useLayout((s) => s.bufferRev);
   const selectedPlacementId = useLayout((s) => s.selectedPlacementId);
+  const viewZoom = useLayout((s) => s.viewZoom);
   const selectPlacement = useLayout((s) => s.selectPlacement);
   const movePlacement = useLayout((s) => s.movePlacement);
+  const zoomViewIn = useLayout((s) => s.zoomViewIn);
+  const zoomViewOut = useLayout((s) => s.zoomViewOut);
 
   const innerRef = useRef<HTMLCanvasElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   useImperativeHandle(ref, () => innerRef.current!, []);
 
   const dragRef = useRef<{
@@ -34,6 +38,14 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
     offsetX: number;
     offsetY: number;
     moved: boolean;
+  } | null>(null);
+
+  const panRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    startScrollLeft: number;
+    startScrollTop: number;
   } | null>(null);
 
   useEffect(() => {
@@ -106,13 +118,31 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
 
   function toCanvasCoords(e: React.PointerEvent): { x: number; y: number } {
     const rect = innerRef.current!.getBoundingClientRect();
+    // rect.width is the on-screen CSS size (canvasWidth * viewZoom); map back to internal pixel space.
+    const scaleX = canvasWidth / rect.width;
+    const scaleY = canvasHeight / rect.height;
     return {
-      x: Math.round(e.clientX - rect.left),
-      y: Math.round(e.clientY - rect.top),
+      x: Math.round((e.clientX - rect.left) * scaleX),
+      y: Math.round((e.clientY - rect.top) * scaleY),
     };
   }
 
   function onPointerDown(e: React.PointerEvent) {
+    // Middle-click anywhere on the canvas = pan the scroll container.
+    if (e.pointerType === 'mouse' && e.button === 1) {
+      const vp = viewportRef.current;
+      if (!vp) return;
+      e.preventDefault();
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      panRef.current = {
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startScrollLeft: vp.scrollLeft,
+        startScrollTop: vp.scrollTop,
+      };
+      return;
+    }
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const { x, y } = toCanvasCoords(e);
     const hit = hitTest(x, y);
@@ -134,6 +164,14 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
   }
 
   function onPointerMove(e: React.PointerEvent) {
+    const pan = panRef.current;
+    if (pan && pan.pointerId === e.pointerId) {
+      const vp = viewportRef.current;
+      if (!vp) return;
+      vp.scrollLeft = pan.startScrollLeft - (e.clientX - pan.startClientX);
+      vp.scrollTop = pan.startScrollTop - (e.clientY - pan.startClientY);
+      return;
+    }
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
     const { x, y } = toCanvasCoords(e);
@@ -145,29 +183,50 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
   }
 
   function onPointerUp(e: React.PointerEvent) {
+    if (panRef.current && panRef.current.pointerId === e.pointerId) {
+      panRef.current = null;
+      return;
+    }
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
     dragRef.current = null;
   }
 
+  // React attaches onWheel as passive, which blocks preventDefault. Bind natively.
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    function handler(e: WheelEvent) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      if (e.deltaY < 0) zoomViewIn();
+      else if (e.deltaY > 0) zoomViewOut();
+    }
+    vp.addEventListener('wheel', handler, { passive: false });
+    return () => vp.removeEventListener('wheel', handler);
+  }, [zoomViewIn, zoomViewOut]);
+
   return (
-    <div className="layouts-canvas-viewport">
-      <canvas
-        ref={innerRef}
-        className="layouts-canvas"
-        style={{
-          width: canvasWidth,
-          height: canvasHeight,
-          imageRendering: 'pixelated',
-          touchAction: 'none',
-          userSelect: 'none',
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onLostPointerCapture={onPointerUp}
-      />
+    <div ref={viewportRef} className="layouts-canvas-viewport-scroll">
+      <div className="layouts-canvas-viewport">
+        <canvas
+          ref={innerRef}
+          className="layouts-canvas"
+          style={{
+            width: canvasWidth * viewZoom,
+            height: canvasHeight * viewZoom,
+            imageRendering: 'pixelated',
+            touchAction: 'none',
+            userSelect: 'none',
+            cursor: panRef.current ? 'grabbing' : 'default',
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onLostPointerCapture={onPointerUp}
+        />
+      </div>
     </div>
   );
 });

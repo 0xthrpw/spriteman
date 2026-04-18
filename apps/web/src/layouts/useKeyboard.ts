@@ -22,6 +22,23 @@ export function useLayoutKeyboard() {
         return;
       }
 
+      // View zoom shortcuts — work regardless of selection.
+      if (e.key === '+' || e.key === '=') {
+        s.zoomViewIn();
+        e.preventDefault();
+        return;
+      }
+      if (e.key === '-' || e.key === '_') {
+        s.zoomViewOut();
+        e.preventDefault();
+        return;
+      }
+      if (e.key === '0') {
+        s.setViewZoom(1);
+        e.preventDefault();
+        return;
+      }
+
       if (!sel) return;
 
       const key = e.key.toLowerCase();

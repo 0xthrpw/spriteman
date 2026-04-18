@@ -12,6 +12,7 @@ import { useLayoutKeyboard } from '../layouts/useKeyboard.js';
 import { ProjectsSidebar } from '../layouts/ProjectsSidebar.js';
 import { LayoutCanvas } from '../layouts/LayoutCanvas.js';
 import { InspectorPanel } from '../layouts/InspectorPanel.js';
+import { ZoomControls } from '../layouts/ZoomControls.js';
 import '../layouts/layouts.css';
 
 export function LayoutEditorPage() {
@@ -97,15 +98,17 @@ function LayoutEditor() {
   }, [projectQueries.map((q) => q.data?.id ?? '').join('|')]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasAreaRef = useRef<HTMLElement>(null);
 
   return (
     <div className="layouts-editor">
       <div className="layouts-editor-topbar">
+        <ZoomControls areaRef={canvasAreaRef} />
         <SaveBadge status={status} name={name} />
       </div>
       <div className="layouts-editor-body">
         <ProjectsSidebar canvasRef={canvasRef} />
-        <main className="layouts-canvas-area">
+        <main ref={canvasAreaRef} className="layouts-canvas-area">
           <LayoutCanvas ref={canvasRef} />
         </main>
         <InspectorPanel />

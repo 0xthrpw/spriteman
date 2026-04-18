@@ -118,19 +118,45 @@
 }
 .layouts-canvas-area {
   background: var(--bg);
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.layouts-canvas-viewport-scroll {
+  flex: 1;
   overflow: auto;
+  padding: 20px;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 20px;
 }
 .layouts-canvas-viewport {
   background: repeating-conic-gradient(#16181d 0% 25%, #1a1d23 0% 50%) 0 0 / 16px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  /* Don't let the paper shrink below its content size — forces the scroll wrapper to scroll. */
+  flex-shrink: 0;
 }
 .layouts-canvas {
   display: block;
+}
+.layouts-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+}
+.layouts-zoom-controls button {
+  padding: 4px 10px;
+  font-size: 13px;
+  min-width: 32px;
+}
+.layouts-zoom-display {
+  min-width: 48px;
+  text-align: center;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
 }
 .layouts-inspector {
   background: var(--bg-elev);

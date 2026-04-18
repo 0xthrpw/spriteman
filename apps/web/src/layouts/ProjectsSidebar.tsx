@@ -206,9 +206,11 @@ function DraggableFrameThumb({
     ) {
       return;
     }
-    // Canvas is rendered at 1 CSS pixel per canvas pixel, so the rect is direct.
-    const cx = Math.round(e.clientX - rect.left);
-    const cy = Math.round(e.clientY - rect.top);
+    // Map from on-screen (zoomed) coords back to internal canvas pixel space.
+    const scaleX = canvasEl.width / rect.width;
+    const scaleY = canvasEl.height / rect.height;
+    const cx = Math.round((e.clientX - rect.left) * scaleX);
+    const cy = Math.round((e.clientY - rect.top) * scaleY);
     // Anchor on the frame's center so the drop feels natural, then snap.
     const anchoredX = cx - Math.floor(width / 2);
     const anchoredY = cy - Math.floor(height / 2);

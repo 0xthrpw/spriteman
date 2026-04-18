@@ -30,6 +30,9 @@ export type LayoutState = {
   projectMeta: Map<string, ProjectMeta>;
   bufferRev: number;
 
+  // view state (ephemeral — not persisted to backend)
+  viewZoom: number;
+
   // actions
   loadLayout: (l: Layout) => void;
   markClean: (version: number) => void;
@@ -58,7 +61,27 @@ export type LayoutState = {
   sendToFront: (id: string) => void;
   sendToBack: (id: string) => void;
   selectPlacement: (id: string | null) => void;
+
+  setViewZoom: (z: number) => void;
+  zoomViewIn: () => void;
+  zoomViewOut: () => void;
 };
+
+export const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8] as const;
+export const ZOOM_MIN = 0.25;
+export const ZOOM_MAX = 8;
+
+export function clampZoom(z: number): number {
+  return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+}
+function nextZoomLevel(z: number, dir: 1 | -1): number {
+  if (dir === 1) {
+    const above = ZOOM_LEVELS.find((v) => v > z + 0.001);
+    return above ?? ZOOM_MAX;
+  }
+  const below = [...ZOOM_LEVELS].reverse().find((v) => v < z - 0.001);
+  return below ?? ZOOM_MIN;
+}
 
 function bump(set: (fn: (s: LayoutState) => Partial<LayoutState>) => void) {
   set((s) => ({ bufferRev: s.bufferRev + 1 }));
@@ -81,6 +104,8 @@ export const useLayout = create<LayoutState>()(
     projectMeta: new Map(),
     bufferRev: 0,
 
+    viewZoom: 1,
+
     loadLayout: (l) => {
       set({
         layoutId: l.id,
@@ -95,6 +120,7 @@ export const useLayout = create<LayoutState>()(
         buffers: new Map(),
         projectMeta: new Map(),
         bufferRev: 0,
+        viewZoom: 1,
       });
     },
 
@@ -229,6 +255,10 @@ export const useLayout = create<LayoutState>()(
     },
 
     selectPlacement: (id) => set({ selectedPlacementId: id }),
+
+    setViewZoom: (z) => set({ viewZoom: clampZoom(z) }),
+    zoomViewIn: () => set((s) => ({ viewZoom: nextZoomLevel(s.viewZoom, 1) })),
+    zoomViewOut: () => set((s) => ({ viewZoom: nextZoomLevel(s.viewZoom, -1) })),
   })),
 );
 
