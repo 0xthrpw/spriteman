@@ -58,6 +58,7 @@ export type EditorState = {
   duplicateFrame: (id: string) => void;
   deleteFrame: (id: string) => void;
   moveFrame: (id: string, toIndex: number) => void;
+  flipActiveFrame: (axis: 'x' | 'y') => void;
 
   // pixel commits (called by tools at pointer-up)
   commitPixelStroke: (frameId: string, diffs: history.PixelDiff[]) => void;
@@ -89,6 +90,37 @@ function applyDiffs(buf: PixelBuffer, diffs: history.PixelDiff[], forward: boole
     buf.data[d.i + 1] = c[1]!;
     buf.data[d.i + 2] = c[2]!;
     buf.data[d.i + 3] = c[3]!;
+  }
+}
+
+function flipBufferInPlace(buf: PixelBuffer, axis: 'x' | 'y') {
+  const { width, height, data } = buf;
+  if (axis === 'x') {
+    const halfW = Math.floor(width / 2);
+    for (let y = 0; y < height; y++) {
+      const rowStart = y * width * 4;
+      for (let x = 0; x < halfW; x++) {
+        const iL = rowStart + x * 4;
+        const iR = rowStart + (width - 1 - x) * 4;
+        for (let k = 0; k < 4; k++) {
+          const tmp = data[iL + k]!;
+          data[iL + k] = data[iR + k]!;
+          data[iR + k] = tmp;
+        }
+      }
+    }
+    return;
+  }
+  const rowBytes = width * 4;
+  const halfH = Math.floor(height / 2);
+  for (let y = 0; y < halfH; y++) {
+    const iTop = y * rowBytes;
+    const iBot = (height - 1 - y) * rowBytes;
+    for (let k = 0; k < rowBytes; k++) {
+      const tmp = data[iTop + k]!;
+      data[iTop + k] = data[iBot + k]!;
+      data[iBot + k] = tmp;
+    }
   }
 }
 
@@ -200,6 +232,14 @@ export const useEditor = create<EditorState>()(
       next.splice(Math.max(0, Math.min(toIndex, next.length)), 0, id);
       set({ frameOrder: next, dirty: true });
     },
+    flipActiveFrame: (axis) => {
+      const { activeFrameId, buffers } = get();
+      const buf = buffers.get(activeFrameId);
+      if (!buf) return;
+      flipBufferInPlace(buf, axis);
+      history.push({ kind: 'flip', frameId: activeFrameId, axis });
+      bumpRev(set);
+    },
 
     commitPixelStroke: (frameId, diffs) => {
       if (diffs.length === 0) return;
@@ -218,6 +258,13 @@ export const useEditor = create<EditorState>()(
         applyDiffs(buf, cmd.diffs, false);
         if (activeFrameId !== cmd.frameId) set({ activeFrameId: cmd.frameId });
         bumpRev(set);
+      } else if (cmd.kind === 'flip') {
+        const { buffers, activeFrameId } = get();
+        const buf = buffers.get(cmd.frameId);
+        if (!buf) return;
+        flipBufferInPlace(buf, cmd.axis);
+        if (activeFrameId !== cmd.frameId) set({ activeFrameId: cmd.frameId });
+        bumpRev(set);
       }
     },
     redo: () => {
@@ -228,6 +275,13 @@ export const useEditor = create<EditorState>()(
         const buf = buffers.get(cmd.frameId);
         if (!buf) return;
         applyDiffs(buf, cmd.diffs, true);
+        if (activeFrameId !== cmd.frameId) set({ activeFrameId: cmd.frameId });
+        bumpRev(set);
+      } else if (cmd.kind === 'flip') {
+        const { buffers, activeFrameId } = get();
+        const buf = buffers.get(cmd.frameId);
+        if (!buf) return;
+        flipBufferInPlace(buf, cmd.axis);
         if (activeFrameId !== cmd.frameId) set({ activeFrameId: cmd.frameId });
         bumpRev(set);
       }

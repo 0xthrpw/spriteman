@@ -59,6 +59,14 @@ export function useKeyboardShortcuts() {
         s.swapFgBg();
         return;
       }
+      if (key === 'h') {
+        s.flipActiveFrame('x');
+        return;
+      }
+      if (key === 'v') {
+        s.flipActiveFrame('y');
+        return;
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
