@@ -32,6 +32,7 @@ export type LayoutState = {
 
   // view state (ephemeral — not persisted to backend)
   viewZoom: number;
+  activeStamp: { projectId: string; frameId: string } | null;
 
   // actions
   loadLayout: (l: Layout) => void;
@@ -65,6 +66,9 @@ export type LayoutState = {
   setViewZoom: (z: number) => void;
   zoomViewIn: () => void;
   zoomViewOut: () => void;
+
+  setActiveStamp: (stamp: { projectId: string; frameId: string } | null) => void;
+  toggleActiveStamp: (stamp: { projectId: string; frameId: string }) => void;
 };
 
 export const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8] as const;
@@ -105,6 +109,7 @@ export const useLayout = create<LayoutState>()(
     bufferRev: 0,
 
     viewZoom: 1,
+    activeStamp: null,
 
     loadLayout: (l) => {
       set({
@@ -121,6 +126,7 @@ export const useLayout = create<LayoutState>()(
         projectMeta: new Map(),
         bufferRev: 0,
         viewZoom: 1,
+        activeStamp: null,
       });
     },
 
@@ -259,8 +265,31 @@ export const useLayout = create<LayoutState>()(
     setViewZoom: (z) => set({ viewZoom: clampZoom(z) }),
     zoomViewIn: () => set((s) => ({ viewZoom: nextZoomLevel(s.viewZoom, 1) })),
     zoomViewOut: () => set((s) => ({ viewZoom: nextZoomLevel(s.viewZoom, -1) })),
+
+    setActiveStamp: (stamp) => set({ activeStamp: stamp }),
+    toggleActiveStamp: (stamp) =>
+      set((s) => ({
+        activeStamp:
+          s.activeStamp?.projectId === stamp.projectId && s.activeStamp.frameId === stamp.frameId
+            ? null
+            : stamp,
+      })),
   })),
 );
+
+// Compute the top-left placement position so that the sprite center lands at (px, py),
+// with the top-left snapped to the layout's grid.
+export function computeStampPosition(
+  pointerX: number,
+  pointerY: number,
+  frameWidth: number,
+  frameHeight: number,
+  grid: number,
+): { x: number; y: number } {
+  const x = snapToGrid(pointerX - Math.floor(frameWidth / 2), grid);
+  const y = snapToGrid(pointerY - Math.floor(frameHeight / 2), grid);
+  return { x, y };
+}
 
 // Snap a canvas pixel coordinate to the current snap grid.
 export function snapToGrid(v: number, grid: number): number {

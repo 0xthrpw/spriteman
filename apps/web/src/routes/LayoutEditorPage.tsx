@@ -97,7 +97,6 @@ function LayoutEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectQueries.map((q) => q.data?.id ?? '').join('|')]);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasAreaRef = useRef<HTMLElement>(null);
 
   return (
@@ -107,9 +106,9 @@ function LayoutEditor() {
         <SaveBadge status={status} name={name} />
       </div>
       <div className="layouts-editor-body">
-        <ProjectsSidebar canvasRef={canvasRef} />
+        <ProjectsSidebar />
         <main ref={canvasAreaRef} className="layouts-canvas-area">
-          <LayoutCanvas ref={canvasRef} />
+          <LayoutCanvas />
         </main>
         <InspectorPanel />
       </div>

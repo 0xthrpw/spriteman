@@ -1,7 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { LayoutPlacement } from '@spriteman/shared';
 import type { PixelBuffer } from '@spriteman/pixel';
-import { bufferKey, snapToGrid, useLayout } from './store.js';
+import { bufferKey, computeStampPosition, snapToGrid, useLayout } from './store.js';
 
 type Box = { x: number; y: number; w: number; h: number };
 
@@ -13,7 +13,7 @@ function aabb(p: LayoutPlacement, sourceW: number, sourceH: number): Box {
   return { x: p.x, y: p.y, w, h };
 }
 
-export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(_props, ref) {
+export function LayoutCanvas() {
   const canvasWidth = useLayout((s) => s.canvasWidth);
   const canvasHeight = useLayout((s) => s.canvasHeight);
   const snapGrid = useLayout((s) => s.snapGrid);
@@ -21,14 +21,17 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
   const bufferRev = useLayout((s) => s.bufferRev);
   const selectedPlacementId = useLayout((s) => s.selectedPlacementId);
   const viewZoom = useLayout((s) => s.viewZoom);
+  const activeStamp = useLayout((s) => s.activeStamp);
   const selectPlacement = useLayout((s) => s.selectPlacement);
   const movePlacement = useLayout((s) => s.movePlacement);
+  const addPlacement = useLayout((s) => s.addPlacement);
   const zoomViewIn = useLayout((s) => s.zoomViewIn);
   const zoomViewOut = useLayout((s) => s.zoomViewOut);
 
+  const [stampHover, setStampHover] = useState<{ x: number; y: number } | null>(null);
+
   const innerRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  useImperativeHandle(ref, () => innerRef.current!, []);
 
   const dragRef = useRef<{
     pointerId: number;
@@ -55,7 +58,7 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
     c.height = canvasHeight;
     draw(c);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasWidth, canvasHeight, snapGrid, placements, bufferRev, selectedPlacementId]);
+  }, [canvasWidth, canvasHeight, snapGrid, placements, bufferRev, selectedPlacementId, activeStamp, stampHover]);
 
   function draw(c: HTMLCanvasElement) {
     const ctx = c.getContext('2d')!;
@@ -92,6 +95,23 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
         ctx.strokeStyle = '#6aa6ff';
         ctx.lineWidth = 1;
         ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+      }
+    }
+
+    if (activeStamp && stampHover) {
+      const meta = state.projectMeta.get(activeStamp.projectId);
+      const buf = state.buffers.get(bufferKey(activeStamp.projectId, activeStamp.frameId));
+      if (meta && buf) {
+        const { x, y } = computeStampPosition(stampHover.x, stampHover.y, meta.width, meta.height, snapGrid);
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(bufferToOffscreen(buf), x, y);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#6aa6ff';
+        ctx.setLineDash([3, 2]);
+        ctx.strokeRect(x + 0.5, y + 0.5, meta.width - 1, meta.height - 1);
+        ctx.setLineDash([]);
+        ctx.restore();
       }
     }
   }
@@ -145,6 +165,21 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
     }
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const { x, y } = toCanvasCoords(e);
+
+    // Stamp mode: every click places a new instance. Skips hit-test/selection.
+    if (activeStamp) {
+      const meta = useLayout.getState().projectMeta.get(activeStamp.projectId);
+      if (!meta) return;
+      const pos = computeStampPosition(x, y, meta.width, meta.height, snapGrid);
+      addPlacement({
+        projectId: activeStamp.projectId,
+        frameId: activeStamp.frameId,
+        x: pos.x,
+        y: pos.y,
+      });
+      return;
+    }
+
     const hit = hitTest(x, y);
     if (!hit) {
       selectPlacement(null);
@@ -173,13 +208,24 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
       return;
     }
     const d = dragRef.current;
-    if (!d || d.pointerId !== e.pointerId) return;
-    const { x, y } = toCanvasCoords(e);
-    if (!d.moved && Math.abs(x - d.startCanvasX) < 2 && Math.abs(y - d.startCanvasY) < 2) return;
-    d.moved = true;
-    const nx = snapToGrid(x - d.offsetX, snapGrid);
-    const ny = snapToGrid(y - d.offsetY, snapGrid);
-    movePlacement(d.placementId, nx, ny);
+    if (d && d.pointerId === e.pointerId) {
+      const { x, y } = toCanvasCoords(e);
+      if (!d.moved && Math.abs(x - d.startCanvasX) < 2 && Math.abs(y - d.startCanvasY) < 2) return;
+      d.moved = true;
+      const nx = snapToGrid(x - d.offsetX, snapGrid);
+      const ny = snapToGrid(y - d.offsetY, snapGrid);
+      movePlacement(d.placementId, nx, ny);
+      return;
+    }
+    // Track hover position for the stamp preview.
+    if (activeStamp) {
+      const { x, y } = toCanvasCoords(e);
+      setStampHover((prev) => (prev && prev.x === x && prev.y === y ? prev : { x, y }));
+    }
+  }
+
+  function onPointerLeave() {
+    setStampHover(null);
   }
 
   function onPointerUp(e: React.PointerEvent) {
@@ -218,18 +264,19 @@ export const LayoutCanvas = forwardRef<HTMLCanvasElement>(function LayoutCanvas(
             imageRendering: 'pixelated',
             touchAction: 'none',
             userSelect: 'none',
-            cursor: panRef.current ? 'grabbing' : 'default',
+            cursor: panRef.current ? 'grabbing' : activeStamp ? 'crosshair' : 'default',
           }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onLostPointerCapture={onPointerUp}
+          onPointerLeave={onPointerLeave}
         />
       </div>
     </div>
   );
-});
+}
 
 function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number, grid: number) {
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
@@ -258,6 +305,14 @@ function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number, grid: num
   ctx.stroke();
 }
 
+function bufferToOffscreen(buf: PixelBuffer): HTMLCanvasElement {
+  const off = document.createElement('canvas');
+  off.width = buf.width;
+  off.height = buf.height;
+  off.getContext('2d')!.putImageData(buf.toImageData(), 0, 0);
+  return off;
+}
+
 function drawPlacement(ctx: CanvasRenderingContext2D, p: LayoutPlacement, buf: PixelBuffer) {
   const w = buf.width;
   const h = buf.height;
@@ -265,12 +320,7 @@ function drawPlacement(ctx: CanvasRenderingContext2D, p: LayoutPlacement, buf: P
   const boxW = rotated ? h : w;
   const boxH = rotated ? w : h;
 
-  // Render source buffer to an ImageBitmap-ish offscreen canvas so drawImage with transforms works.
-  const off = document.createElement('canvas');
-  off.width = w;
-  off.height = h;
-  off.getContext('2d')!.putImageData(buf.toImageData(), 0, 0);
-
+  const off = bufferToOffscreen(buf);
   ctx.save();
   ctx.translate(p.x + boxW / 2, p.y + boxH / 2);
   ctx.rotate((p.rotation * Math.PI) / 180);

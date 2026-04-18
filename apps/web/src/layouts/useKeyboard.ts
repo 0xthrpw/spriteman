@@ -15,6 +15,11 @@ export function useLayoutKeyboard() {
       const sel = s.selectedPlacementId;
 
       if (e.key === 'Escape') {
+        if (s.activeStamp) {
+          s.setActiveStamp(null);
+          e.preventDefault();
+          return;
+        }
         if (sel) {
           s.selectPlacement(null);
           e.preventDefault();
