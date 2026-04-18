@@ -6,6 +6,8 @@ import { RequireAuth } from './auth/RequireAuth.js';
 import { ProjectsListPage } from './routes/ProjectsListPage.js';
 import { EditorPage } from './routes/EditorPage.js';
 import { PalettesPage } from './routes/PalettesPage.js';
+import { LayoutsListPage } from './routes/LayoutsListPage.js';
+import { LayoutEditorPage } from './routes/LayoutEditorPage.js';
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -42,6 +44,22 @@ export function App() {
             element={
               <RequireAuth>
                 <PalettesPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/layouts"
+            element={
+              <RequireAuth>
+                <LayoutsListPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/layouts/:id"
+            element={
+              <RequireAuth>
+                <LayoutEditorPage />
               </RequireAuth>
             }
           />

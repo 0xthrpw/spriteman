@@ -10,6 +10,7 @@ import authPlugin from './plugins/auth.js';
 import authRoutes from './routes/auth.js';
 import projectsRoutes from './routes/projects.js';
 import palettesRoutes from './routes/palettes.js';
+import layoutsRoutes from './routes/layouts.js';
 
 async function build() {
   const app = Fastify({
@@ -40,6 +41,7 @@ async function build() {
   await app.register(authRoutes, { prefix: '/auth' });
   await app.register(projectsRoutes, { prefix: '/projects' });
   await app.register(palettesRoutes, { prefix: '/palettes' });
+  await app.register(layoutsRoutes, { prefix: '/layouts' });
 
   return app;
 }

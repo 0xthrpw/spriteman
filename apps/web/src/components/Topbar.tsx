@@ -9,6 +9,7 @@ export function Topbar() {
       <h1>🖼️ Spriteman</h1>
       <Link to="/projects">Projects</Link>
       <Link to="/palettes">Palettes</Link>
+      <Link to="/layouts">Layouts</Link>
       <div className="spacer" />
       {me.data && (
         <>
