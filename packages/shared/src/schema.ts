@@ -113,6 +113,74 @@ export const ApiError = z.object({
 });
 export type ApiError = z.infer<typeof ApiError>;
 
+// Layout composition: dragging frames from any project onto a shared canvas.
+export const LAYOUT_CANVAS_MIN = 16;
+export const LAYOUT_CANVAS_MAX = 2048;
+export const LAYOUT_SNAP_GRID_VALUES = [8, 16, 24, 32] as const;
+
+export const LayoutRotation = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]);
+export type LayoutRotation = z.infer<typeof LayoutRotation>;
+
+export const LayoutSnapGrid = z.union([z.literal(8), z.literal(16), z.literal(24), z.literal(32)]);
+export type LayoutSnapGrid = z.infer<typeof LayoutSnapGrid>;
+
+export const LayoutPlacement = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  frameId: z.string().uuid(),
+  x: z.number().int(),
+  y: z.number().int(),
+  rotation: LayoutRotation,
+  flipX: z.boolean(),
+  flipY: z.boolean(),
+});
+export type LayoutPlacement = z.infer<typeof LayoutPlacement>;
+
+export const Layout = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(120),
+  canvasWidth: z.number().int().min(LAYOUT_CANVAS_MIN).max(LAYOUT_CANVAS_MAX),
+  canvasHeight: z.number().int().min(LAYOUT_CANVAS_MIN).max(LAYOUT_CANVAS_MAX),
+  snapGrid: LayoutSnapGrid,
+  // Array order is z-order: index 0 = back, last = front.
+  placements: z.array(LayoutPlacement),
+  version: z.number().int().nonnegative(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type Layout = z.infer<typeof Layout>;
+
+export const LayoutSummary = Layout.pick({
+  id: true,
+  name: true,
+  canvasWidth: true,
+  canvasHeight: true,
+  snapGrid: true,
+  version: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  placementCount: z.number().int().nonnegative(),
+});
+export type LayoutSummary = z.infer<typeof LayoutSummary>;
+
+export const CreateLayoutRequest = z.object({
+  name: z.string().min(1).max(120),
+  canvasWidth: z.number().int().min(LAYOUT_CANVAS_MIN).max(LAYOUT_CANVAS_MAX),
+  canvasHeight: z.number().int().min(LAYOUT_CANVAS_MIN).max(LAYOUT_CANVAS_MAX),
+  snapGrid: LayoutSnapGrid,
+});
+export type CreateLayoutRequest = z.infer<typeof CreateLayoutRequest>;
+
+export const UpdateLayoutRequest = Layout.pick({
+  name: true,
+  canvasWidth: true,
+  canvasHeight: true,
+  snapGrid: true,
+  placements: true,
+});
+export type UpdateLayoutRequest = z.infer<typeof UpdateLayoutRequest>;
+
 // Built-in palette presets (curated pixel-art friendly)
 export const BUILT_IN_PALETTES: Array<{ name: string; colors: HexColor[] }> = [
   {

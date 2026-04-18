@@ -1,5 +1,5 @@
 import { pgTable, uuid, text, integer, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
-import type { Frame, ProjectPalette, HexColor } from '@spriteman/shared';
+import type { Frame, ProjectPalette, HexColor, LayoutPlacement } from '@spriteman/shared';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -44,6 +44,28 @@ export const palettes = pgTable(
   }),
 );
 
+export const layouts = pgTable(
+  'layouts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    canvasWidth: integer('canvas_width').notNull(),
+    canvasHeight: integer('canvas_height').notNull(),
+    snapGrid: integer('snap_grid').notNull(),
+    placements: jsonb('placements').$type<LayoutPlacement[]>().notNull(),
+    version: integer('version').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index('layouts_user_idx').on(t.userId),
+  }),
+);
+
 export type DbUser = typeof users.$inferSelect;
 export type DbProject = typeof projects.$inferSelect;
 export type DbPalette = typeof palettes.$inferSelect;
+export type DbLayout = typeof layouts.$inferSelect;
