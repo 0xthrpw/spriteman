@@ -9,6 +9,7 @@ import {
 } from '../api.js';
 import { readActive, resolveProjectId, writeActive } from '../config.js';
 import { blankFrame, projectToUpdate } from '../frameUtil.js';
+import { parseColorMap, recolorFrames } from '../recolor.js';
 import { die, output, parseIntArg } from '../util.js';
 
 export const register = (program: Command): void => {
@@ -129,4 +130,42 @@ export const register = (program: Command): void => {
       writeActive({ projectId: id });
       process.stdout.write(`active project: ${id}\n`);
     });
+
+  project
+    .command('recolor <sourceId> <newName>')
+    .description('clone a project into a new one, remapping pixels per --map')
+    .requiredOption(
+      '--map <pairs>',
+      'comma-separated hex:hex pairs, e.g. "#2e3436:#a40000,#555753:#cc0000"',
+    )
+    .option('--json', 'emit JSON')
+    .action(
+      async (
+        sourceId: string,
+        newName: string,
+        opts: { map: string; json?: boolean },
+      ) => {
+        const map = parseColorMap(opts.map);
+        if (map.size === 0) die('--map must contain at least one pair');
+        const c = createClient();
+        const src = await getProject(c, sourceId);
+        const newFrames = recolorFrames(src, map);
+        const created = await createProject(c, {
+          name: newName,
+          width: src.width,
+          height: src.height,
+          fps: src.fps,
+        });
+        const final = await mutateProject(c, created.id, (p) => ({
+          ...projectToUpdate(p),
+          frames: newFrames,
+          palette: src.palette,
+        }));
+        if (opts.json) output(true, '', final);
+        else
+          process.stdout.write(
+            `recolored ${src.id} -> ${final.id}  ${final.width}x${final.height}  ${final.frames.length} frame(s)  ${final.name}\n`,
+          );
+      },
+    );
 };
