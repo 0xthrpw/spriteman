@@ -3,6 +3,7 @@ import type { Palette } from '@spriteman/shared';
 import { useEditor } from './store.js';
 import { BUILT_IN_PALETTES } from '@spriteman/shared';
 import { api } from '../api.js';
+import { UsedColorsPanel } from './UsedColorsPanel.js';
 
 export function PalettePanel() {
   const palette = useEditor((s) => s.palette);
@@ -88,6 +89,8 @@ export function PalettePanel() {
           </div>
         </>
       )}
+
+      <UsedColorsPanel />
     </div>
   );
 }

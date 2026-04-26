@@ -164,6 +164,46 @@ button.tool .kbd {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.swatch:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  transform: none;
+}
+.swatch.tiny {
+  width: 14px;
+  height: 14px;
+  aspect-ratio: 1;
+  display: inline-block;
+  vertical-align: middle;
+}
+.used-empty {
+  font-size: 12px;
+  color: var(--fg-dim);
+  font-style: italic;
+}
+.replace-row {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: rgba(106, 166, 255, 0.06);
+}
+.replace-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.replace-cancel {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.section-label.small {
+  font-size: 10px;
+  margin: 8px 0 4px;
+}
 
 /* Timeline */
 .timeline {

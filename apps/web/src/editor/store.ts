@@ -68,6 +68,9 @@ export type EditorState = {
   // pixel commits (called by tools at pointer-up)
   commitPixelStroke: (frameId: string, diffs: history.PixelDiff[]) => void;
 
+  // replace every pixel matching `from` with `to` in the given frame
+  replaceColor: (frameId: string, from: HexColor, to: HexColor) => void;
+
   // undo / redo
   undo: () => void;
   redo: () => void;
@@ -258,6 +261,30 @@ export const useEditor = create<EditorState>()(
     },
 
     commitPixelStroke: (frameId, diffs) => {
+      if (diffs.length === 0) return;
+      history.push({ kind: 'pixels', frameId, diffs });
+      set({ dirty: true });
+      bumpRev(set);
+    },
+
+    replaceColor: (frameId, from, to) => {
+      if (from === to) return;
+      const buf = get().buffers.get(frameId);
+      if (!buf) return;
+      const f = hexToRgba(from);
+      const t = hexToRgba(to);
+      if (rgbaEqual(f, t)) return;
+      const data = buf.data;
+      const diffs: history.PixelDiff[] = [];
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] === f[0] && data[i + 1] === f[1] && data[i + 2] === f[2] && data[i + 3] === f[3]) {
+          diffs.push({ i, before: [f[0], f[1], f[2], f[3]], after: [t[0], t[1], t[2], t[3]] });
+          data[i] = t[0];
+          data[i + 1] = t[1];
+          data[i + 2] = t[2];
+          data[i + 3] = t[3];
+        }
+      }
       if (diffs.length === 0) return;
       history.push({ kind: 'pixels', frameId, diffs });
       set({ dirty: true });
