@@ -24,6 +24,10 @@ export function ProjectsListPage() {
     mutationFn: (id: string) => api(`/projects/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
   });
+  const dup = useMutation({
+    mutationFn: (id: string) => api<Project>(`/projects/${id}/duplicate`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+  });
 
   const [showCreate, setShowCreate] = useState(false);
 
@@ -60,6 +64,9 @@ export function ProjectsListPage() {
               <span style={{ color: 'var(--fg-dim)', fontSize: 12 }}>
                 {new Date(p.updatedAt).toLocaleString()}
               </span>
+              <button onClick={() => dup.mutate(p.id)} disabled={dup.isPending}>
+                Copy
+              </button>
               <button
                 className="danger"
                 onClick={() => {

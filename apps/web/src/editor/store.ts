@@ -25,6 +25,10 @@ export type EditorState = {
   frameMeta: Record<string, { durationMs: number | null }>;
   activeFrameId: string;
 
+  // session-only: frame ids excluded from the animation preview loop.
+  // Not persisted; resets on project load.
+  previewExcluded: Set<string>;
+
   // pixel data — not stored in reactive state to avoid huge diffs
   buffers: FrameBuffers; // keep as a stable ref; bump bufferRev to signal change
   bufferRev: number;
@@ -59,6 +63,7 @@ export type EditorState = {
   deleteFrame: (id: string) => void;
   moveFrame: (id: string, toIndex: number) => void;
   flipActiveFrame: (axis: 'x' | 'y') => void;
+  toggleFramePreview: (id: string) => void;
 
   // pixel commits (called by tools at pointer-up)
   commitPixelStroke: (frameId: string, diffs: history.PixelDiff[]) => void;
@@ -137,6 +142,7 @@ export const useEditor = create<EditorState>()(
     frameOrder: [],
     frameMeta: {},
     activeFrameId: '',
+    previewExcluded: new Set<string>(),
     buffers: new Map(),
     bufferRev: 0,
 
@@ -205,7 +211,7 @@ export const useEditor = create<EditorState>()(
       bumpRev(set);
     },
     deleteFrame: (id) => {
-      const { frameOrder, buffers, frameMeta, activeFrameId } = get();
+      const { frameOrder, buffers, frameMeta, activeFrameId, previewExcluded } = get();
       if (frameOrder.length <= 1) return; // keep at least one
       const idx = frameOrder.indexOf(id);
       const nextOrder = frameOrder.filter((f) => f !== id);
@@ -215,10 +221,14 @@ export const useEditor = create<EditorState>()(
         activeFrameId === id
           ? nextOrder[Math.max(0, Math.min(idx, nextOrder.length - 1))]!
           : activeFrameId;
+      const nextExcluded = previewExcluded.has(id)
+        ? new Set([...previewExcluded].filter((f) => f !== id))
+        : previewExcluded;
       set({
         frameOrder: nextOrder,
         frameMeta: restMeta,
         activeFrameId: nextActive,
+        previewExcluded: nextExcluded,
         dirty: true,
       });
       bumpRev(set);
@@ -239,6 +249,12 @@ export const useEditor = create<EditorState>()(
       flipBufferInPlace(buf, axis);
       history.push({ kind: 'flip', frameId: activeFrameId, axis });
       bumpRev(set);
+    },
+    toggleFramePreview: (id) => {
+      const next = new Set(get().previewExcluded);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      set({ previewExcluded: next });
     },
 
     commitPixelStroke: (frameId, diffs) => {
@@ -308,6 +324,7 @@ export const useEditor = create<EditorState>()(
         frameOrder: p.frames.map((f) => f.id),
         frameMeta,
         activeFrameId: p.frames[0]!.id,
+        previewExcluded: new Set<string>(),
         buffers,
         palette: p.palette,
         bufferRev: 0,

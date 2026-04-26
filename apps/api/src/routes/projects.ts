@@ -106,6 +106,39 @@ const projectsRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.post(
+    '/:id/duplicate',
+    {
+      schema: {
+        params: IdParam,
+        response: { 200: Project, 404: ApiError },
+      },
+    },
+    async (req, reply) => {
+      const userId = req.requireUser();
+      const { id } = req.params as z.infer<typeof IdParam>;
+      const src = await db.query.projects.findFirst({
+        where: and(eq(schema.projects.id, id), eq(schema.projects.userId, userId)),
+      });
+      if (!src) return reply.code(404).send({ error: 'not_found' });
+      const [row] = await db
+        .insert(schema.projects)
+        .values({
+          userId,
+          name: `${src.name} (copy)`.slice(0, 120),
+          width: src.width,
+          height: src.height,
+          fps: src.fps,
+          frames: src.frames.map((f) => ({ ...f, id: randomUUID() })),
+          palette: src.palette,
+          version: 0,
+        })
+        .returning();
+      if (!row) throw new Error('failed to duplicate project');
+      return toProjectDto(row);
+    },
+  );
+
   app.get(
     '/:id',
     {

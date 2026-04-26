@@ -131,6 +131,8 @@ function FrameThumb({
   const width = useEditor((s) => s.width);
   const height = useEditor((s) => s.height);
   const bufferRev = useEditor((s) => s.bufferRev);
+  const excluded = useEditor((s) => s.previewExcluded.has(id));
+  const toggleFramePreview = useEditor((s) => s.toggleFramePreview);
 
   useEffect(() => {
     const c = ref.current;
@@ -146,20 +148,32 @@ function FrameThumb({
   const cls = ['frame-thumb'];
   if (active) cls.push('active');
   if (dragging) cls.push('dragging');
+  if (excluded) cls.push('excluded');
 
   return (
-    <button
-      className={cls.join(' ')}
-      onClick={onSelect}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onLostPointerCapture={onPointerCancel}
-      title={`Frame ${index + 1}`}
-    >
-      <canvas ref={ref} style={{ imageRendering: 'pixelated', width: 48, height: 48 }} />
-      <span>{index + 1}</span>
-    </button>
+    <div className="frame-thumb-wrap">
+      <button
+        className={cls.join(' ')}
+        onClick={onSelect}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onLostPointerCapture={onPointerCancel}
+        title={`Frame ${index + 1}`}
+      >
+        <canvas ref={ref} style={{ imageRendering: 'pixelated', width: 48, height: 48 }} />
+        <span>{index + 1}</span>
+      </button>
+      <button
+        type="button"
+        className={`frame-eye${excluded ? ' off' : ''}`}
+        aria-label={excluded ? 'Include frame in preview' : 'Exclude frame from preview'}
+        title={excluded ? 'Include in preview' : 'Exclude from preview'}
+        onClick={() => toggleFramePreview(id)}
+      >
+        {excluded ? '🚫' : '👁'}
+      </button>
+    </div>
   );
 }

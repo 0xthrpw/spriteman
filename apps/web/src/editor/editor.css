@@ -180,6 +180,10 @@ button.tool .kbd {
   overflow-x: auto;
   align-items: center;
 }
+.frame-thumb-wrap {
+  position: relative;
+  display: inline-flex;
+}
 .frame-thumb {
   display: flex;
   flex-direction: column;
@@ -192,6 +196,34 @@ button.tool .kbd {
   cursor: grab;
   touch-action: none;
   user-select: none;
+}
+.frame-thumb.excluded canvas {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+}
+.frame-eye {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 80ms linear;
+}
+.frame-thumb-wrap:hover .frame-eye,
+.frame-eye.off {
+  opacity: 1;
 }
 .frame-thumb.active {
   border-color: var(--accent);

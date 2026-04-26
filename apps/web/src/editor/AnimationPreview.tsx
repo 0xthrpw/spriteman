@@ -5,11 +5,14 @@ import { useEditor } from './store.js';
 // Drives playback from a single rAF loop with accumulator-based FPS timing.
 export function AnimationPreview() {
   const frameOrder = useEditor((s) => s.frameOrder);
+  const previewExcluded = useEditor((s) => s.previewExcluded);
   const width = useEditor((s) => s.width);
   const height = useEditor((s) => s.height);
   const fps = useEditor((s) => s.fps);
   const setFps = (n: number) => useEditor.setState({ fps: Math.max(1, Math.min(60, n)), dirty: true });
   const bufferRev = useEditor((s) => s.bufferRev);
+
+  const effectiveOrder = frameOrder.filter((id) => !previewExcluded.has(id));
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playing, setPlaying] = useState(true);
@@ -48,7 +51,7 @@ export function AnimationPreview() {
   function draw(i: number) {
     const c = canvasRef.current;
     if (!c) return;
-    const id = frameOrder[i];
+    const id = effectiveOrder[i];
     if (!id) return;
     const bmp = bitmapsRef.current.get(id);
     if (!bmp) return;
@@ -60,20 +63,20 @@ export function AnimationPreview() {
   }
 
   useEffect(() => {
-    if (!playing || frameOrder.length <= 1) {
-      draw(index);
+    if (!playing || effectiveOrder.length <= 1) {
+      draw(Math.min(index, Math.max(0, effectiveOrder.length - 1)));
       return;
     }
     let raf = 0;
     let last = performance.now();
     let acc = 0;
-    let i = index;
+    let i = Math.min(index, effectiveOrder.length - 1);
     const step = 1000 / fps;
     function loop(now: number) {
       acc += now - last;
       last = now;
       while (acc >= step) {
-        i = (i + 1) % frameOrder.length;
+        i = (i + 1) % effectiveOrder.length;
         acc -= step;
       }
       draw(i);
@@ -85,11 +88,11 @@ export function AnimationPreview() {
       setIndex(i);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, fps, frameOrder.length, width, height]);
+  }, [playing, fps, effectiveOrder.join(','), width, height]);
 
   // redraw on bufferRev when paused
   useEffect(() => {
-    if (!playing) draw(index);
+    if (!playing) draw(Math.min(index, Math.max(0, effectiveOrder.length - 1)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bufferRev, index, playing]);
 
