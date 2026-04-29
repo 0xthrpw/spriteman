@@ -1,7 +1,12 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Project, ProjectSummary, CreateProjectRequest } from '@spriteman/shared';
+import type {
+  Project,
+  ProjectSummary,
+  CreateProjectRequest,
+  RenameProjectRequest,
+} from '@spriteman/shared';
 import { api } from '../api.js';
 import { Topbar } from '../components/Topbar.js';
 
@@ -26,6 +31,14 @@ export function ProjectsListPage() {
   });
   const dup = useMutation({
     mutationFn: (id: string) => api<Project>(`/projects/${id}/duplicate`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+  });
+  const rename = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      api<Project>(`/projects/${id}`, {
+        method: 'PATCH',
+        json: { name } satisfies RenameProjectRequest,
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
   });
 
@@ -53,33 +66,97 @@ export function ProjectsListPage() {
         )}
         <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
           {list.data?.map((p) => (
-            <div key={p.id} className="card row">
-              <Link to={`/projects/${p.id}`} style={{ fontWeight: 600 }}>
-                {p.name}
-              </Link>
-              <span style={{ color: 'var(--fg-dim)' }}>
-                {p.width}×{p.height} · {p.frameCount} frame{p.frameCount === 1 ? '' : 's'} · {p.fps}fps
-              </span>
-              <div className="spacer" />
-              <span style={{ color: 'var(--fg-dim)', fontSize: 12 }}>
-                {new Date(p.updatedAt).toLocaleString()}
-              </span>
-              <button onClick={() => dup.mutate(p.id)} disabled={dup.isPending}>
-                Copy
-              </button>
-              <button
-                className="danger"
-                onClick={() => {
-                  if (confirm(`Delete "${p.name}"?`)) del.mutate(p.id);
-                }}
-              >
-                Delete
-              </button>
-            </div>
+            <ProjectRow
+              key={p.id}
+              project={p}
+              onDuplicate={() => dup.mutate(p.id)}
+              duplicating={dup.isPending}
+              onDelete={() => {
+                if (confirm(`Delete "${p.name}"?`)) del.mutate(p.id);
+              }}
+              onRename={(name) => rename.mutate({ id: p.id, name })}
+            />
           ))}
         </div>
       </div>
     </>
+  );
+}
+
+function ProjectRow({
+  project: p,
+  onDuplicate,
+  duplicating,
+  onDelete,
+  onRename,
+}: {
+  project: ProjectSummary;
+  onDuplicate: () => void;
+  duplicating: boolean;
+  onDelete: () => void;
+  onRename: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(p.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      setDraft(p.name);
+      // Focus + select on next tick so the input is mounted.
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      });
+    }
+  }, [editing, p.name]);
+
+  function commit() {
+    const next = draft.trim();
+    if (next && next !== p.name) onRename(next);
+    setEditing(false);
+  }
+
+  function cancel() {
+    setDraft(p.name);
+    setEditing(false);
+  }
+
+  return (
+    <div className="card row">
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draft}
+          maxLength={120}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit();
+            else if (e.key === 'Escape') cancel();
+          }}
+          style={{ fontWeight: 600, minWidth: 200 }}
+        />
+      ) : (
+        <Link to={`/projects/${p.id}`} style={{ fontWeight: 600 }}>
+          {p.name}
+        </Link>
+      )}
+      <span style={{ color: 'var(--fg-dim)' }}>
+        {p.width}×{p.height} · {p.frameCount} frame{p.frameCount === 1 ? '' : 's'} · {p.fps}fps
+      </span>
+      <div className="spacer" />
+      <span style={{ color: 'var(--fg-dim)', fontSize: 12 }}>
+        {new Date(p.updatedAt).toLocaleString()}
+      </span>
+      {!editing && <button onClick={() => setEditing(true)}>Rename</button>}
+      <button onClick={onDuplicate} disabled={duplicating}>
+        Copy
+      </button>
+      <button className="danger" onClick={onDelete}>
+        Delete
+      </button>
+    </div>
   );
 }
 

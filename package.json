@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "dev:web": "npm run dev -w @spriteman/web",
-    "dev:api": "npm run dev -w @spriteman/api",
+    "dev:api": "npm run build -w @spriteman/shared && npm run dev -w @spriteman/api",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:up": "docker compose up -d postgres",

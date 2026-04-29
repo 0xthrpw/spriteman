@@ -76,6 +76,9 @@ export const UpdateProjectRequest = Project.omit({
 });
 export type UpdateProjectRequest = z.infer<typeof UpdateProjectRequest>;
 
+export const RenameProjectRequest = Project.pick({ name: true });
+export type RenameProjectRequest = z.infer<typeof RenameProjectRequest>;
+
 export const Palette = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid().nullable(),

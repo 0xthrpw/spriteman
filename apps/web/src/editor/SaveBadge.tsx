@@ -18,10 +18,30 @@ const COLORS: Record<Status, string> = {
   offline: 'var(--fg-dim)',
 };
 
-export function SaveBadge({ status, name }: { status: Status; name: string }) {
+export function SaveBadge({
+  status,
+  name,
+  onNameChange,
+}: {
+  status: Status;
+  name: string;
+  onNameChange?: (name: string) => void;
+}) {
   return (
     <div className="save-badge">
-      <span style={{ fontWeight: 600 }}>{name}</span>
+      {onNameChange ? (
+        <input
+          className="project-name-input"
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          maxLength={120}
+          placeholder="Untitled"
+          spellCheck={false}
+          aria-label="Project name"
+        />
+      ) : (
+        <span style={{ fontWeight: 600 }}>{name}</span>
+      )}
       {status !== 'idle' && (
         <span style={{ color: COLORS[status], fontSize: 12 }}>{LABELS[status]}</span>
       )}

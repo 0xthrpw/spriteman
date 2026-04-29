@@ -6,6 +6,7 @@ import { db, schema } from '../db/client.js';
 import {
   CreateProjectRequest,
   UpdateProjectRequest,
+  RenameProjectRequest,
   Project,
   ProjectSummary,
   ApiError,
@@ -197,6 +198,37 @@ const projectsRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(schema.projects.id, id))
         .returning();
       if (!row) throw new Error('failed to update project');
+      return reply.header('ETag', String(row.version)).send(toProjectDto(row));
+    },
+  );
+
+  app.patch(
+    '/:id',
+    {
+      schema: {
+        params: IdParam,
+        body: RenameProjectRequest,
+        response: { 200: Project, 404: ApiError },
+      },
+    },
+    async (req, reply) => {
+      const userId = req.requireUser();
+      const { id } = req.params as z.infer<typeof IdParam>;
+      const body = req.body as z.infer<typeof RenameProjectRequest>;
+      const existing = await db.query.projects.findFirst({
+        where: and(eq(schema.projects.id, id), eq(schema.projects.userId, userId)),
+      });
+      if (!existing) return reply.code(404).send({ error: 'not_found' });
+      const [row] = await db
+        .update(schema.projects)
+        .set({
+          name: body.name,
+          version: existing.version + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.projects.id, id))
+        .returning();
+      if (!row) throw new Error('failed to rename project');
       return reply.header('ETag', String(row.version)).send(toProjectDto(row));
     },
   );
