@@ -50,6 +50,7 @@ export type EditorState = {
   setTool: (t: ToolId) => void;
   setBrushSize: (n: 1 | 2 | 3 | 4) => void;
   setActiveColor: (c: HexColor) => void;
+  setName: (name: string) => void;
   pushRecent: (c: HexColor) => void;
   swapFgBg: () => void;
   setActiveFrame: (id: string) => void;
@@ -166,6 +167,7 @@ export const useEditor = create<EditorState>()(
     setTool: (t) => set({ tool: t }),
     setBrushSize: (n) => set({ brushSize: n }),
     setActiveColor: (c) => set({ activeColor: c }),
+    setName: (name) => set({ name: name.slice(0, 120), dirty: true }),
     pushRecent: (c) =>
       set((s) => {
         const next = [c, ...s.palette.recents.filter((x) => x !== c)].slice(0, 16);

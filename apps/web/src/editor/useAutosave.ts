@@ -10,6 +10,7 @@ export function useAutosave(): Status {
   const projectId = useEditor((s) => s.projectId);
   const dirty = useEditor((s) => s.dirty);
   const bufferRev = useEditor((s) => s.bufferRev);
+  const name = useEditor((s) => s.name);
 
   const [status, setStatus] = useState<Status>('idle');
   const timerRef = useRef<number | null>(null);
@@ -58,7 +59,7 @@ export function useAutosave(): Status {
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
-  }, [bufferRev, dirty, projectId]);
+  }, [bufferRev, dirty, projectId, name]);
 
   // Flush on tab hide / unload
   useEffect(() => {

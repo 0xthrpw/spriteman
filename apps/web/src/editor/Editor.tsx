@@ -27,6 +27,8 @@ export function Editor({ projectId }: { projectId: string }) {
 
   useKeyboardShortcuts();
   const saveStatus = useAutosave();
+  const name = useEditor((s) => s.name);
+  const setName = useEditor((s) => s.setName);
 
   if (isLoading) return <div className="page">Loading project…</div>;
   if (error || !data) return <div className="page error">Failed to load project.</div>;
@@ -36,7 +38,7 @@ export function Editor({ projectId }: { projectId: string }) {
     <div className="editor">
       <div className="editor-topbar">
         <Toolbar />
-        <SaveBadge status={saveStatus} name={data.name} />
+        <SaveBadge status={saveStatus} name={name} onNameChange={setName} />
         <ExportMenu />
       </div>
       <div className="editor-body">
